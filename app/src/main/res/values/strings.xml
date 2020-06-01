@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">VideoChatSample</string>
+    <string name="camera_permission_required">This app requires camera permission\n to be granted</string>
 </resources>
