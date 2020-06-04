@@ -18,6 +18,12 @@ class MainViewModel(private val permissionChecker: AppPermissionChecker) : ViewM
 
     private lateinit var _state: MutableLiveData<MainViewContract.State>
 
+    fun onGrantPermissionRequested() {
+        if (!permissionChecker.isCameraPermissionGranted()) {
+            _state.postValue(MainViewContract.State.CameraPermissionRequired)
+        }
+    }
+
     fun onUpdatePermission() {
         if (!permissionChecker.isCameraPermissionGranted()) {
             _state.postValue(MainViewContract.State.CameraPermissionDeclined)

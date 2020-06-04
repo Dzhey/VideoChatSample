@@ -53,6 +53,7 @@ class MainFragment : Fragment() {
         viewState.cameraInfo = CameraInfo(requireContext())
 
         viewModel.state.observe(viewLifecycleOwner, Observer { render(it) })
+        permissionNotice.setOnClickListener { viewModel.onGrantPermissionRequested() }
 
         setupAvatarMotion()
     }
