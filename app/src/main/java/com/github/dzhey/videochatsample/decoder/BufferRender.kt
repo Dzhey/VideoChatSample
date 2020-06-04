@@ -7,7 +7,7 @@ import timber.log.Timber
 /**
  * [MediaCodec]'s callback delegate dedicated to render specified buffer at particular correct time
  */
-class BufferRender {
+internal class BufferRender {
 
     @Volatile
     private var isReleased = false

@@ -4,7 +4,7 @@ import android.media.MediaCodecInfo
 import android.media.MediaCodecList
 import android.media.MediaFormat
 
-data class SessionDecoderInfo constructor(
+internal data class SessionDecoderInfo constructor(
     val format: MediaFormat,
     val decoderName: String,
     val isAdaptivePlaybackSupported: Boolean) {

@@ -6,7 +6,7 @@ import android.media.MediaFormat
 /**
  * @return found video track or -1
  */
-fun MediaExtractor.findVideoTrackId(): Int {
+internal fun MediaExtractor.findVideoTrackId(): Int {
     return (0..trackCount).indexOfFirst {
         getTrackFormat(it).getString(MediaFormat.KEY_MIME)
             .orEmpty()
@@ -18,7 +18,7 @@ fun MediaExtractor.findVideoTrackId(): Int {
  * @return found video track id
  * @throws [IllegalArgumentException] if track could not be found
  */
-fun MediaExtractor.getVideoTrackId(): Int {
+internal fun MediaExtractor.getVideoTrackId(): Int {
     return findVideoTrackId().also {
         require(it > -1)
     }
