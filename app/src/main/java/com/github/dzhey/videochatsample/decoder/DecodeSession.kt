@@ -183,6 +183,8 @@ class DecodeSession constructor(
             it.resume(true)
         }
 
+        decoderCallback.release()
+
         // Use the same thread as media decoder's callbacks to ensure
         // we prevent any race conditions with buffers and rendering
         try {

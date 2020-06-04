@@ -54,20 +54,7 @@ class MainFragment : Fragment() {
 
         viewModel.state.observe(viewLifecycleOwner, Observer { render(it) })
 
-        var touchLocation: Point? = null
-        requireView().setOnTouchListener { v, event ->
-            if (event.action == MotionEvent.ACTION_DOWN) {
-                touchLocation = requireView().userAvatarContainer.getRelativePosition(event.rawX, event.rawY)
-                return@setOnTouchListener true
-            }
-            if (event.action == MotionEvent.ACTION_UP) {
-                touchLocation?.let { viewModel.onLocationSelected(it) }
-                touchLocation = null
-                return@setOnTouchListener true
-            }
-
-            false
-        }
+        setupAvatarMotion()
     }
 
     private fun render(state: MainViewContract.State) {
@@ -142,6 +129,23 @@ class MainFragment : Fragment() {
                     val video = videos[index % videos.size]
                     player.loopVideo(video, value.surfaceTexture)
                 }
+        }
+    }
+
+    private fun setupAvatarMotion() {
+        var touchLocation: Point? = null
+        requireView().setOnTouchListener { v, event ->
+            if (event.action == MotionEvent.ACTION_DOWN) {
+                touchLocation = requireView().userAvatarContainer.getRelativePosition(event.rawX, event.rawY)
+                return@setOnTouchListener true
+            }
+            if (event.action == MotionEvent.ACTION_UP) {
+                touchLocation?.let { viewModel.onLocationSelected(it) }
+                touchLocation = null
+                return@setOnTouchListener true
+            }
+
+            false
         }
     }
 
