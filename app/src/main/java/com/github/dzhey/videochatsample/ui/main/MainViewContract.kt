@@ -33,7 +33,6 @@ interface MainViewContract {
     }
 
     sealed class State {
-        object Idle : State()
         object CameraPermissionDeclined : State()
         object CameraPermissionRequired : State()
         object Content : State()

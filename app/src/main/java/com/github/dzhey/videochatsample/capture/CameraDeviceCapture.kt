@@ -9,6 +9,7 @@ import android.view.Surface
 import androidx.lifecycle.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import timber.log.Timber
 
 class CameraDeviceCapture(context: Context, val lifecycleOwner: LifecycleOwner, val cameraId: String) {
     private var status: Status = Status.STOPPED
@@ -46,35 +47,51 @@ class CameraDeviceCapture(context: Context, val lifecycleOwner: LifecycleOwner, 
         this.config = config
 
         lifecycleOwner.lifecycleScope.launch(Dispatchers.Main) {
-            if (status == Status.STARTED) {
-                return@launch
-            }
-
-            status = Status.STARTED
-
-            lifecycleOwner.lifecycle.addObserver(lifecycleObserver)
-
-            handlerThread = HandlerThread("CameraThread").apply { start() }
-            val handler = Handler(handlerThread!!.looper)
-
-            cameraDevice = cameraManager.openCamera(cameraId, handler)
-            val previewRequest = cameraDevice!!.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW).apply {
-                addTarget(config.surface)
-                set(CaptureRequest.CONTROL_MODE, CameraMetadata.CONTROL_MODE_AUTO)
-            }.build()
-
-            previewSession = cameraDevice!!.createCaptureSession(listOf(config.surface), handler).apply {
-                setRepeatingRequest(previewRequest, null, handler)
+            try {
+                doStartCapture()
+            } catch (e: Exception) {
+                release()
+                Timber.w(e, "failed to start capture")
             }
         }
     }
 
     fun stopCapture() {
         release()
-        status = Status.STOPPED
+    }
+
+    private suspend fun doStartCapture() {
+        if (status == Status.STARTED) {
+            return
+        }
+
+        status = Status.STARTED
+
+        lifecycleOwner.lifecycle.removeObserver(lifecycleObserver)
+        lifecycleOwner.lifecycle.addObserver(lifecycleObserver)
+
+        handlerThread = HandlerThread("CameraThread").apply { start() }
+        val handler = Handler(handlerThread!!.looper)
+
+        cameraDevice = cameraManager.openCamera(cameraId, handler)
+        val previewRequest = cameraDevice!!.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW).apply {
+            addTarget(config.surface)
+            set(CaptureRequest.CONTROL_MODE, CameraMetadata.CONTROL_MODE_AUTO)
+        }.build()
+
+        if (status != Status.STARTED) {
+            return
+        }
+
+        previewSession = cameraDevice!!.createCaptureSession(listOf(config.surface), handler).apply {
+            if (status == Status.STARTED) {
+                setRepeatingRequest(previewRequest, null, handler)
+            }
+        }
     }
 
     private fun release() {
+        status = Status.STOPPED
         previewSession?.close()
         previewSession = null
         cameraDevice?.close()

@@ -7,6 +7,7 @@ import android.view.LayoutInflater
 import android.view.Surface
 import android.view.View
 import android.view.ViewGroup
+import androidx.core.view.children
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Observer
@@ -16,10 +17,12 @@ import com.github.dzhey.videochatsample.capture.CameraDeviceCapture
 import com.github.dzhey.videochatsample.capture.CameraInfo
 import com.github.dzhey.videochatsample.capture.PreviewSize
 import com.github.dzhey.videochatsample.capture.requireSurfaceTexture
+import com.github.dzhey.videochatsample.decoder.VideoPlayer
 import com.github.dzhey.videochatsample.ui.App
 import kotlinx.android.synthetic.main.main_fragment.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.collectIndexed
 import kotlinx.coroutines.launch
 
 class MainFragment : Fragment() {
@@ -106,6 +109,20 @@ class MainFragment : Fragment() {
 
             capture!!.startCapture(CameraDeviceCapture.CaptureConfig(surface!!))
         }
+
+        val videos = listOf("video1.mp4", "video2.mp4")
+        lifecycleScope.launch(Dispatchers.IO) {
+            val player = VideoPlayer(requireContext(), lifecycle)
+            VideoAvatarProducer(requireContext())
+                .createViews(avatarContainer as ViewGroup,
+                    VIDEOS_NUM,
+                    avatarContainer.children.toList(),
+                    PRODUCER_THROTTLE_MS)
+                .collectIndexed { index, value ->
+                    val video = videos[index % videos.size]
+                    player.loopVideo(video, value.surfaceTexture)
+                }
+        }
     }
 
     override fun onStart() {
@@ -137,5 +154,7 @@ class MainFragment : Fragment() {
 
     companion object {
         private const val PERMISSION_REQUEST = 123
+        private const val VIDEOS_NUM = 9
+        private const val PRODUCER_THROTTLE_MS = 50L
     }
 }

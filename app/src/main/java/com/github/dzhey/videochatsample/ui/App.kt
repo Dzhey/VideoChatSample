@@ -4,6 +4,7 @@ import android.app.Application
 import com.github.dzhey.videochatsample.di.AppModule
 import com.github.dzhey.videochatsample.di.ApplicationComponent
 import com.github.dzhey.videochatsample.di.DaggerApplicationComponent
+import timber.log.Timber
 
 class App : Application() {
 
@@ -11,6 +12,8 @@ class App : Application() {
         super.onCreate()
 
         _instance = this
+
+        Timber.plant(Timber.DebugTree())
     }
 
     companion object {

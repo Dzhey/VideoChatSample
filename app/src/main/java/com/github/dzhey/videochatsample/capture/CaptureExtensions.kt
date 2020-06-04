@@ -71,6 +71,7 @@ suspend fun TextureView.requireSurfaceTexture(): SurfaceTexture = suspendCorouti
     }
 
     val initialListener = surfaceTextureListener
+    var isResumed = false
 
     surfaceTextureListener = object : TextureView.SurfaceTextureListener {
         override fun onSurfaceTextureSizeChanged(surface: SurfaceTexture?, width: Int, height: Int) {
@@ -85,7 +86,10 @@ suspend fun TextureView.requireSurfaceTexture(): SurfaceTexture = suspendCorouti
             try {
                 return initialListener?.onSurfaceTextureDestroyed(surface) ?: true
             } finally {
-                it.resumeWith(Result.failure(RuntimeException("texture destroyed")))
+                if (!isResumed) {
+                    it.resumeWith(Result.failure(RuntimeException("texture destroyed")))
+                    isResumed = true
+                }
             }
         }
 
@@ -95,7 +99,13 @@ suspend fun TextureView.requireSurfaceTexture(): SurfaceTexture = suspendCorouti
             if (surfaceTextureListener === this) {
                 surfaceTextureListener = initialListener
             }
+
+            if (isResumed) {
+                return
+            }
+
             it.resumeWith(Result.success(surface!!))
+            isResumed = true
         }
     }
 }
