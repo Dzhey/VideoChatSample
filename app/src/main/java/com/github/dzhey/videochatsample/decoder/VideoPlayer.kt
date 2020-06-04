@@ -75,7 +75,9 @@ class VideoPlayer(context: Context, private val lifecycle: Lifecycle) {
                 }
                 SessionStatus.FINISHED -> {
                     Timber.d("play video '%s' after finish", sessionId)
-                    session.restart()
+                    if (lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
+                        session.restart()
+                    }
                 }
                 SessionStatus.STOPPED -> {
                     Timber.d("playback '%s' stopped", sessionId)

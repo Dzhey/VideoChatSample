@@ -9,13 +9,14 @@ import android.os.HandlerThread
 import android.view.Surface
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.coroutineScope
-import kotlinx.coroutines.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
 import timber.log.Timber
-import java.lang.IllegalStateException
-import java.lang.Runnable
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
@@ -166,7 +167,9 @@ class DecodeSession constructor(
                 .filter { !it.isTransitiveState }
                 .take(1)
                 .onEach { stopImpl() }
-                .collect { cont.resume(it) }
+                .collect {
+                    cont.resume(it)
+                }
         }
     }
 
