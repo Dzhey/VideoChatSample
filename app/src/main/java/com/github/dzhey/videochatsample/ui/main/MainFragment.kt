@@ -2,16 +2,19 @@ package com.github.dzhey.videochatsample.ui.main
 
 import android.Manifest
 import android.content.res.Configuration
+import android.graphics.Point
 import android.os.Bundle
-import android.view.LayoutInflater
-import android.view.Surface
-import android.view.View
-import android.view.ViewGroup
+import android.view.*
 import androidx.core.view.children
+import androidx.core.view.doOnLayout
+import androidx.dynamicanimation.animation.DynamicAnimation
+import androidx.dynamicanimation.animation.SpringAnimation
+import androidx.dynamicanimation.animation.SpringForce
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Observer
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.whenStarted
 import com.github.dzhey.videochatsample.R
 import com.github.dzhey.videochatsample.capture.CameraDeviceCapture
 import com.github.dzhey.videochatsample.capture.CameraInfo
@@ -19,7 +22,9 @@ import com.github.dzhey.videochatsample.capture.PreviewSize
 import com.github.dzhey.videochatsample.capture.requireSurfaceTexture
 import com.github.dzhey.videochatsample.decoder.VideoPlayer
 import com.github.dzhey.videochatsample.ui.App
+import com.github.dzhey.videochatsample.ui.views.getRelativePosition
 import kotlinx.android.synthetic.main.main_fragment.*
+import kotlinx.android.synthetic.main.main_fragment.view.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.collectIndexed
@@ -31,10 +36,7 @@ class MainFragment : Fragment() {
 
     private val viewModel: MainViewModel by viewModels(
         factoryProducer = { component.viewModelFactory() })
-    private var capture: CameraDeviceCapture? = null
-    private var captureJob: Job? = null
-    private var surface: Surface? = null
-    private lateinit var cameraInfo: CameraInfo
+    private val viewState = ViewState()
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?,
                               savedInstanceState: Bundle?): View {
@@ -48,9 +50,24 @@ class MainFragment : Fragment() {
             .applicationComponent(App.component)
             .build()
 
-        cameraInfo = CameraInfo(requireContext())
+        viewState.cameraInfo = CameraInfo(requireContext())
 
         viewModel.state.observe(viewLifecycleOwner, Observer { render(it) })
+
+        var touchLocation: Point? = null
+        requireView().setOnTouchListener { v, event ->
+            if (event.action == MotionEvent.ACTION_DOWN) {
+                touchLocation = requireView().userAvatarContainer.getRelativePosition(event.rawX, event.rawY)
+                return@setOnTouchListener true
+            }
+            if (event.action == MotionEvent.ACTION_UP) {
+                touchLocation?.let { viewModel.onLocationSelected(it) }
+                touchLocation = null
+                return@setOnTouchListener true
+            }
+
+            false
+        }
     }
 
     private fun render(state: MainViewContract.State) {
@@ -71,44 +88,47 @@ class MainFragment : Fragment() {
             permissionNotice.visibility = View.GONE
             previewView.visibility = View.VISIBLE
             capturePreview()
+            showVideos(state)
+            handleAvatarPositionSelection(state)
             return
         }
     }
 
-    private fun capturePreview() {
-        if (captureJob?.isActive == true) {
+    private fun handleAvatarPositionSelection(state: MainViewContract.State.Content) {
+        state.avatarPosition?.let { point ->
+            requireView().userAvatar.doOnLayout {
+                val targetX = maxOf(0, point.x - it.width / 2)
+                val targetY = maxOf(0, point.y - it.height / 2)
+                animateToPoint(Point(targetX, targetY))
+            }
+        }
+    }
+
+    private fun animateToPoint(point: Point) {
+        SpringAnimation(requireView().userAvatar, DynamicAnimation.TRANSLATION_X, point.x.toFloat()).apply {
+            spring.stiffness = SpringForce.STIFFNESS_VERY_LOW
+            spring.dampingRatio = SpringForce.DAMPING_RATIO_LOW_BOUNCY
+            start()
+        }
+
+        SpringAnimation(requireView().userAvatar, DynamicAnimation.TRANSLATION_Y, point.y.toFloat()).apply {
+            spring.stiffness = SpringForce.STIFFNESS_VERY_LOW
+            spring.dampingRatio = SpringForce.DAMPING_RATIO_LOW_BOUNCY
+            start()
+        }
+    }
+
+    private fun showVideos(state: MainViewContract.State.Content) {
+        if (viewState.isShowingVideos == state.isShowingVideos) {
             return
         }
 
-        captureJob = lifecycleScope.launch(Dispatchers.Main) {
-            val surfaceTexture = previewView.requireSurfaceTexture()
-            if (surface == null) {
-                surface = Surface(surfaceTexture)
-            }
-
-            val targetCameraId = cameraInfo.getFrontCameraId()
-            if (capture == null) {
-                capture = CameraDeviceCapture(requireContext(), this@MainFragment, targetCameraId)
-            }
-
-            val supportedSizes = cameraInfo.getPreviewSizes(targetCameraId)
-            val surfaceTextureSize = previewView.surfaceTextureSize
-            val chosenSize = PreviewSize.getOptimalSize(supportedSizes,
-                surfaceTextureSize.width,
-                surfaceTextureSize.height,
-                surfaceTextureSize)!!
-            val orientation = resources.configuration.orientation
-            if (orientation == Configuration.ORIENTATION_LANDSCAPE) {
-                previewView.setAspectRatio(chosenSize.width, chosenSize.height)
-            } else {
-                previewView.setAspectRatio(chosenSize.height, chosenSize.width)
-            }
-
-            previewView.applyTransform(previewView.surfaceTextureSize.width, previewView.surfaceTextureSize.height)
-            surfaceTexture.setDefaultBufferSize(chosenSize.width, chosenSize.height)
-
-            capture!!.startCapture(CameraDeviceCapture.CaptureConfig(surface!!))
+        if (!state.isShowingVideos) {
+            avatarContainer.removeAllViews()
+            return
         }
+
+        viewState.isShowingVideos = true
 
         val videos = listOf("video1.mp4", "video2.mp4")
         lifecycleScope.launch(Dispatchers.IO) {
@@ -125,6 +145,48 @@ class MainFragment : Fragment() {
         }
     }
 
+    private fun capturePreview() {
+        if (viewState.captureJob?.isActive == true || viewState.isCaptureStarted) {
+            return
+        }
+
+        viewState.isCaptureStarted = true
+
+        viewState.captureJob = lifecycleScope.launch(Dispatchers.Main) {
+            val surfaceTexture = previewView.requireSurfaceTexture()
+            if (viewState.surface == null) {
+                viewState.surface = Surface(surfaceTexture)
+            }
+
+            val targetCameraId = viewState.cameraInfo!!.getFrontCameraId()
+            if (viewState.capture == null) {
+                viewState.capture = CameraDeviceCapture(requireContext(), this@MainFragment, targetCameraId)
+            }
+
+            val supportedSizes = viewState.cameraInfo!!.getPreviewSizes(targetCameraId)
+            val surfaceTextureSize = previewView.surfaceTextureSize
+            val chosenSize = PreviewSize.getOptimalSize(supportedSizes,
+                surfaceTextureSize.width,
+                surfaceTextureSize.height,
+                surfaceTextureSize)!!
+            val orientation = resources.configuration.orientation
+            if (orientation == Configuration.ORIENTATION_LANDSCAPE) {
+                previewView.setAspectRatio(chosenSize.width, chosenSize.height)
+            } else {
+                previewView.setAspectRatio(chosenSize.height, chosenSize.width)
+            }
+
+            previewView.applyTransform(previewView.surfaceTextureSize.width, previewView.surfaceTextureSize.height)
+            surfaceTexture.setDefaultBufferSize(chosenSize.width, chosenSize.height)
+
+            viewState.capture!!.startCapture(CameraDeviceCapture.CaptureConfig(viewState.surface!!))
+
+            lifecycle.whenStarted {
+                viewModel.onCaptureStarted()
+            }
+        }
+    }
+
     override fun onStart() {
         super.onStart()
 
@@ -134,10 +196,7 @@ class MainFragment : Fragment() {
     override fun onStop() {
         super.onStop()
 
-        captureJob?.cancel()
-        capture?.stopCapture()
-        surface?.release()
-        surface = null
+        viewState.release()
     }
 
     override fun onRequestPermissionsResult(requestCode: Int,
@@ -156,5 +215,23 @@ class MainFragment : Fragment() {
         private const val PERMISSION_REQUEST = 123
         private const val VIDEOS_NUM = 9
         private const val PRODUCER_THROTTLE_MS = 50L
+    }
+
+    private class ViewState(
+        var capture: CameraDeviceCapture? = null,
+        var captureJob: Job? = null,
+        var isCaptureStarted: Boolean = false,
+        var surface: Surface? = null,
+        var cameraInfo: CameraInfo? = null,
+        var isShowingVideos: Boolean = false
+    ) {
+        fun release() {
+            captureJob?.cancel()
+            capture?.stopCapture()
+            surface?.release()
+            surface = null
+            isCaptureStarted = false
+            isShowingVideos = false
+        }
     }
 }

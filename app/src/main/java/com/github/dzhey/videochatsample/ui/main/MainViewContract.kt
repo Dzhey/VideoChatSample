@@ -1,5 +1,6 @@
 package com.github.dzhey.videochatsample.ui.main
 
+import android.graphics.Point
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import com.github.dzhey.videochatsample.di.ApplicationComponent
@@ -35,6 +36,9 @@ interface MainViewContract {
     sealed class State {
         object CameraPermissionDeclined : State()
         object CameraPermissionRequired : State()
-        object Content : State()
+        data class Content(
+            val avatarPosition: Point? = null,
+            val isShowingVideos: Boolean = false
+        ) : State()
     }
 }

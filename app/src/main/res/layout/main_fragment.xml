@@ -13,22 +13,22 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
-    <com.github.dzhey.videochatsample.ui.views.CircleFrameLayout
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent">
+    <FrameLayout
+        android:id="@+id/userAvatarContainer"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
 
-        <com.github.dzhey.videochatsample.ui.views.AutoFitTextureView
-            android:id="@+id/previewView"
-            android:layout_width="92dp"
-            android:layout_height="92dp"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent" />
-    </com.github.dzhey.videochatsample.ui.views.CircleFrameLayout>
+        <com.github.dzhey.videochatsample.ui.views.CircleFrameLayout
+            android:id="@+id/userAvatar"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content">
+
+            <com.github.dzhey.videochatsample.ui.views.AutoFitTextureView
+                android:id="@+id/previewView"
+                android:layout_width="92dp"
+                android:layout_height="92dp" />
+        </com.github.dzhey.videochatsample.ui.views.CircleFrameLayout>
+    </FrameLayout>
 
     <TextView
         android:id="@+id/permissionNotice"

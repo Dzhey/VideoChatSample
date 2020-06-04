@@ -1,5 +1,6 @@
 package com.github.dzhey.videochatsample.ui.main
 
+import android.graphics.Point
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
@@ -23,12 +24,26 @@ class MainViewModel(private val permissionChecker: AppPermissionChecker) : ViewM
             return
         }
 
-        _state.postValue(MainViewContract.State.Content)
+        _state.postValue(MainViewContract.State.Content())
+    }
+
+    fun onLocationSelected(position: Point) {
+        val currentState = _state.value
+        if (currentState is MainViewContract.State.Content) {
+            _state.postValue(currentState.copy(avatarPosition = position))
+        }
+    }
+
+    fun onCaptureStarted() {
+        val currentState = _state.value
+        if (currentState is MainViewContract.State.Content) {
+            _state.postValue(currentState.copy(isShowingVideos = true))
+        }
     }
 
     private fun initState() {
         if (permissionChecker.isCameraPermissionGranted()) {
-            _state = MutableLiveData(MainViewContract.State.Content)
+            _state = MutableLiveData(MainViewContract.State.Content())
             return
         }
 
