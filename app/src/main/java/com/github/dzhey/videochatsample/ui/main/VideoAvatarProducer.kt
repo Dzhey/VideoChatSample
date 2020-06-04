@@ -6,6 +6,7 @@ import android.graphics.SurfaceTexture
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.core.view.doOnLayout
 import com.github.dzhey.videochatsample.R
 import com.github.dzhey.videochatsample.capture.requireSurfaceTexture
 import com.github.dzhey.videochatsample.ui.views.getSize
@@ -44,6 +45,12 @@ class VideoAvatarProducer(context: Context) {
             .map { AvatarData(it, it.textureView.requireSurfaceTexture()) }
             .onEach { delayIfNeeded(throttleMillis) }
             .flowOn(Dispatchers.IO)
+    }
+
+    fun getRandomViewPosition(view: View, viewParent: ViewGroup, onPositionReady: (Point) -> Unit) {
+        viewParent.doOnLayout {
+            onPositionReady(selectViewPosition(Point(it.width, it.height)))
+        }
     }
 
     private fun setViewPosition(view: View, position: Point) {

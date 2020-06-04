@@ -38,9 +38,15 @@ class MainFragment : Fragment() {
         factoryProducer = { component.viewModelFactory() })
     private val viewState = ViewState()
 
-    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?,
+    override fun onCreateView(inflater: LayoutInflater,
+                              container: ViewGroup?,
                               savedInstanceState: Bundle?): View {
-        return inflater.inflate(R.layout.main_fragment, container, false)
+        return inflater.inflate(R.layout.main_fragment, container, false).apply {
+            VideoAvatarProducer(requireContext()).getRandomViewPosition(userAvatar, userAvatarContainer) {
+                userAvatar.translationX = it.x.toFloat()
+                userAvatar.translationY = it.y.toFloat()
+            }
+        }
     }
 
     override fun onActivityCreated(savedInstanceState: Bundle?) {
