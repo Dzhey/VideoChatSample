@@ -125,8 +125,9 @@ class MainFragment : Fragment() {
         viewState.isShowingVideos = true
 
         val videos = listOf("video1.mp4", "video2.mp4")
+        val player = VideoPlayer(requireContext(), lifecycle)
+
         lifecycleScope.launch(Dispatchers.IO) {
-            val player = VideoPlayer(requireContext(), lifecycle)
             VideoAvatarProducer(requireContext())
                 .createViews(avatarContainer as ViewGroup,
                     VIDEOS_NUM,
