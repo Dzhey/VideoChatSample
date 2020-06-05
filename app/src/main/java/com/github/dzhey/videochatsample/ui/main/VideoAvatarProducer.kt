@@ -13,7 +13,6 @@ import com.github.dzhey.videochatsample.ui.views.getSize
 import kotlinx.android.synthetic.main.avatar_view.view.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 
 class VideoAvatarProducer(context: Context) {
@@ -23,9 +22,8 @@ class VideoAvatarProducer(context: Context) {
 
     @FlowPreview
     fun createViews(parent: ViewGroup,
-                    numOfViews: Int = MAX_VIEWS,
                     reuseViews: List<View> = listOf(),
-                    throttleMillis: Long = 0L): Flow<AvatarData> {
+                    numOfViews: Int = MAX_VIEWS): Flow<AvatarData> {
         require(numOfViews > 0)
 
         val viewCache = reuseViews.toMutableList()
@@ -43,11 +41,10 @@ class VideoAvatarProducer(context: Context) {
             .map { it.second }
             .flowOn(Dispatchers.Main)
             .map { AvatarData(it, it.textureView.requireSurfaceTexture()) }
-            .onEach { delayIfNeeded(throttleMillis) }
             .flowOn(Dispatchers.IO)
     }
 
-    fun getRandomViewPosition(view: View, viewParent: ViewGroup, onPositionReady: (Point) -> Unit) {
+    fun getRandomViewPosition(viewParent: ViewGroup, onPositionReady: (Point) -> Unit) {
         viewParent.doOnLayout {
             onPositionReady(selectViewPosition(Point(it.width, it.height)))
         }
@@ -80,10 +77,6 @@ class VideoAvatarProducer(context: Context) {
             it.textureView.isAutoReleaseEnabled = false
             parent.addView(it)
         }
-    }
-
-    private suspend fun delayIfNeeded(millis: Long) {
-        if (millis > 0) delay(millis)
     }
 
     companion object {

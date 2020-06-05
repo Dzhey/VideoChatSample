@@ -42,7 +42,7 @@ class MainFragment : Fragment() {
                               container: ViewGroup?,
                               savedInstanceState: Bundle?): View {
         return inflater.inflate(R.layout.main_fragment, container, false).apply {
-            VideoAvatarProducer(requireContext()).getRandomViewPosition(userAvatar, userAvatarContainer) {
+            VideoAvatarProducer(requireContext()).getRandomViewPosition(userAvatarContainer) {
                 userAvatar.translationX = it.x.toFloat()
                 userAvatar.translationY = it.y.toFloat()
             }
@@ -129,10 +129,7 @@ class MainFragment : Fragment() {
 
         lifecycleScope.launch(Dispatchers.IO) {
             VideoAvatarProducer(requireContext())
-                .createViews(avatarContainer as ViewGroup,
-                    VIDEOS_NUM,
-                    avatarContainer.children.toList(),
-                    PRODUCER_THROTTLE_MS)
+                .createViews(avatarContainer as ViewGroup, avatarContainer.children.toList())
                 .collectIndexed { index, value ->
                     val video = videos[index % videos.size]
                     player.loopVideo(video, value.surfaceTexture)
@@ -225,7 +222,6 @@ class MainFragment : Fragment() {
 
     companion object {
         private const val PERMISSION_REQUEST = 123
-        private const val VIDEOS_NUM = 9
         private const val PRODUCER_THROTTLE_MS = 50L
     }
 
