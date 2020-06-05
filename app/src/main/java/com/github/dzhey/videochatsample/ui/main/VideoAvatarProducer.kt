@@ -53,9 +53,11 @@ class VideoAvatarProducer(context: Context) {
     private fun setViewPosition(view: View, position: Point) {
         view.layoutParams.apply {
             this as ViewGroup.MarginLayoutParams
-            leftMargin = position.x
-            topMargin = position.y
-            view.layoutParams = this
+            if (leftMargin == 0 && topMargin == 0) {
+                leftMargin = position.x
+                topMargin = position.y
+                view.layoutParams = this
+            }
         }
     }
 

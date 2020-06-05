@@ -3,9 +3,12 @@ package com.github.dzhey.videochatsample.ui.main
 import android.graphics.Point
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import com.github.dzhey.videochatsample.decoder.VideoPlayer
+import com.github.dzhey.videochatsample.decoder.VideoPlayerImpl
 import com.github.dzhey.videochatsample.di.ApplicationComponent
 import com.github.dzhey.videochatsample.di.scopes.ScreenScope
 import com.github.dzhey.videochatsample.permissions.AppPermissionChecker
+import com.github.dzhey.videochatsample.ui.App
 import dagger.Provides
 
 interface MainViewContract {
@@ -22,6 +25,11 @@ interface MainViewContract {
                 }
             }
         }
+
+        @Provides
+        fun provideVideoPlayer(): VideoPlayer {
+            return VideoPlayerImpl(App.instance)
+        }
     }
 
     @dagger.Component(
@@ -31,6 +39,8 @@ interface MainViewContract {
     interface Component {
         @ScreenScope
         fun viewModelFactory(): ViewModelProvider.Factory
+
+        fun inject(fragment: MainFragment)
     }
 
     sealed class State {

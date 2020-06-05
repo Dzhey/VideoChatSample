@@ -1,96 +1,53 @@
 package com.github.dzhey.videochatsample.decoder
 
-import android.content.Context
 import android.graphics.SurfaceTexture
-import android.view.Surface
 import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleObserver
-import androidx.lifecycle.OnLifecycleEvent
-import androidx.lifecycle.coroutineScope
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.channels.ReceiveChannel
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 import timber.log.Timber
 
-/**
- * Stream specified video to given [SurfaceTexture].
- * Player automatically release resources on activity/fragment stop which is determined from lifecycle.
- */
-class VideoPlayer(context: Context, private val lifecycle: Lifecycle) {
+interface VideoPlayer {
 
-    private val context = context.applicationContext
-    private val decodeSessions = hashMapOf<String, DecodeSession>()
-    private val surfaces = hashMapOf<String, Surface>()
-    private var isFinishing: Boolean = false
+    val statusChannel: ReceiveChannel<Status>
 
-    private val lifecycleObserver = object : LifecycleObserver {
-
-        @OnLifecycleEvent(Lifecycle.Event.ON_STOP)
-        fun doOnStop() = GlobalScope.launch(Dispatchers.Main) {
-            if (isFinishing) {
-                return@launch
-            }
-
-            isFinishing = true
-            decodeSessions.forEach {
-                it.value.stopSafely()
-                surfaces[it.key]!!.release()
-            }
-            decodeSessions.clear()
-            surfaces.clear()
-            isFinishing = false
-        }
-    }
-
-    init {
-        lifecycle.addObserver(lifecycleObserver)
-    }
+    val currentStatus: Status
 
     /**
      * Stream video to given texture. Loops video until activity/fragment is stopped.
-     * Video won't resume automatically after stop.
      */
-    fun loopVideo(videoName: String, surfaceTexture: SurfaceTexture) {
-        if (isFinishing) {
-            return
-        }
+    fun loopVideo(videoName: String, surfaceTexture: SurfaceTexture)
 
-        val sessionId = createSessionId(videoName)
-        val surface = Surface(surfaceTexture)
+    fun bindLifecycle(lifecycle: Lifecycle)
 
-        DecodeSession(context, lifecycle, videoName, surface).apply {
-            decodeSessions[sessionId] = this
-            surfaces[sessionId] = surface
-            Timber.d("added session playback session '%s'", sessionId)
-            observeStatus(this, sessionId)
-            start()
-        }
+    enum class Status {
+        STARTED, STOPPED
     }
+}
 
-    private fun observeStatus(session: DecodeSession, sessionId: String) = lifecycle.coroutineScope.launch {
-        for (status in session.statusChannel) {
-            when (status) {
-                SessionStatus.STARTED -> {
-                    Timber.d("playback '%s' started", sessionId)
-                }
-                SessionStatus.FINISHED -> {
-                    Timber.d("play video '%s' after finish", sessionId)
-                    if (lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
-                        session.restart()
-                    }
-                }
-                SessionStatus.STOPPED -> {
-                    Timber.d("playback '%s' stopped", sessionId)
-                }
-                SessionStatus.ERROR -> {
-                    Timber.w("playback '%s' error", sessionId)
-                }
-                else -> {
-                    Timber.d("session status changed to %s", status)
+suspend fun VideoPlayer.doWhenStopped(
+    coroutineScope: CoroutineScope, block: () -> Unit
+) = suspendCancellableCoroutine<VideoPlayer.Status> { cont ->
+    coroutineScope.launch(Dispatchers.Main.immediate) {
+        if (currentStatus == VideoPlayer.Status.STOPPED) {
+            block()
+            cont.resume(currentStatus) { e ->
+                Timber.w(e, "cancelled")
+            }
+            return@launch
+        }
+
+        statusChannel.receiveAsFlow().collect {
+            if (it == VideoPlayer.Status.STOPPED) {
+                block()
+                cont.resume(it) { e ->
+                    Timber.w(e, "cancelled")
                 }
             }
         }
     }
-
-    private fun createSessionId(videoName: String) = "$videoName-${decodeSessions.size}"
 }

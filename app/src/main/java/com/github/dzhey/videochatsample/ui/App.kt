@@ -24,5 +24,8 @@ class App : Application() {
         }
 
         private lateinit var _instance: App
+
+        val instance: App
+            get() = _instance
     }
 }

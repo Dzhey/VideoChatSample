@@ -12,6 +12,7 @@ import androidx.dynamicanimation.animation.SpringAnimation
 import androidx.dynamicanimation.animation.SpringForce
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.Observer
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.whenStarted
@@ -21,14 +22,15 @@ import com.github.dzhey.videochatsample.capture.CameraInfo
 import com.github.dzhey.videochatsample.capture.PreviewSize
 import com.github.dzhey.videochatsample.capture.requireSurfaceTexture
 import com.github.dzhey.videochatsample.decoder.VideoPlayer
+import com.github.dzhey.videochatsample.decoder.doWhenStopped
 import com.github.dzhey.videochatsample.ui.App
 import com.github.dzhey.videochatsample.ui.views.getRelativePosition
 import kotlinx.android.synthetic.main.main_fragment.*
 import kotlinx.android.synthetic.main.main_fragment.view.*
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.collectIndexed
-import kotlinx.coroutines.launch
+import timber.log.Timber
+import javax.inject.Inject
 
 class MainFragment : Fragment() {
 
@@ -37,6 +39,20 @@ class MainFragment : Fragment() {
     private val viewModel: MainViewModel by viewModels(
         factoryProducer = { component.viewModelFactory() })
     private val viewState = ViewState()
+    private val stateObserver = Observer<MainViewContract.State> { render(it) }
+
+    @Inject
+    lateinit var player: VideoPlayer
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+
+        component = DaggerMainViewContract_Component.builder()
+            .applicationComponent(App.component)
+            .build()
+        component.inject(this)
+        player.bindLifecycle(lifecycle)
+    }
 
     override fun onCreateView(inflater: LayoutInflater,
                               container: ViewGroup?,
@@ -52,13 +68,8 @@ class MainFragment : Fragment() {
     override fun onActivityCreated(savedInstanceState: Bundle?) {
         super.onActivityCreated(savedInstanceState)
 
-        component = DaggerMainViewContract_Component.builder()
-            .applicationComponent(App.component)
-            .build()
-
         viewState.cameraInfo = CameraInfo(requireContext())
 
-        viewModel.state.observe(viewLifecycleOwner, Observer { render(it) })
         permissionNotice.setOnClickListener { viewModel.onGrantPermissionRequested() }
 
         setupAvatarMotion()
@@ -124,17 +135,26 @@ class MainFragment : Fragment() {
 
         viewState.isShowingVideos = true
 
-        val videos = listOf("video1.mp4", "video2.mp4")
-        val player = VideoPlayer(requireContext(), lifecycle)
-
-        lifecycleScope.launch(Dispatchers.IO) {
-            VideoAvatarProducer(requireContext())
-                .createViews(avatarContainer as ViewGroup, avatarContainer.children.toList())
-                .collectIndexed { index, value ->
-                    val video = videos[index % videos.size]
-                    player.loopVideo(video, value.surfaceTexture)
-                }
+        lifecycleScope.launch {
+            player.doWhenStopped(viewState.displayScope!!) {
+                startVideos()
+            }
         }
+    }
+
+    private fun startVideos() = lifecycleScope.launch {
+        if (!lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
+            return@launch
+        }
+
+        val videos = listOf("video1.mp4", "video2.mp4")
+
+        VideoAvatarProducer(requireContext())
+            .createViews(avatarContainer as ViewGroup, avatarContainer.children.toList())
+            .collectIndexed { index, value ->
+                val video = videos[index % videos.size]
+                player.loopVideo(video, value.surfaceTexture)
+            }
     }
 
     private fun setupAvatarMotion() {
@@ -199,12 +219,14 @@ class MainFragment : Fragment() {
     override fun onStart() {
         super.onStart()
 
-        viewModel.state.value?.let { render(it) }
+        viewState.displayScope = lifecycleScope + Job()
+        viewModel.state.observe(viewLifecycleOwner, stateObserver)
     }
 
     override fun onStop() {
         super.onStop()
 
+        viewModel.state.removeObserver(stateObserver)
         viewState.release()
     }
 
@@ -222,7 +244,6 @@ class MainFragment : Fragment() {
 
     companion object {
         private const val PERMISSION_REQUEST = 123
-        private const val PRODUCER_THROTTLE_MS = 50L
     }
 
     private class ViewState(
@@ -231,7 +252,8 @@ class MainFragment : Fragment() {
         var isCaptureStarted: Boolean = false,
         var surface: Surface? = null,
         var cameraInfo: CameraInfo? = null,
-        var isShowingVideos: Boolean = false
+        var isShowingVideos: Boolean = false,
+        var displayScope: CoroutineScope? = null
     ) {
         fun release() {
             captureJob?.cancel()
@@ -240,6 +262,8 @@ class MainFragment : Fragment() {
             surface = null
             isCaptureStarted = false
             isShowingVideos = false
+            displayScope?.cancel()
+            displayScope = null
         }
     }
 }
