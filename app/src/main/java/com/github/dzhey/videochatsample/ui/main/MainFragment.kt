@@ -187,7 +187,7 @@ class MainFragment : Fragment() {
                 previewView.setAspectRatio(chosenSize.height, chosenSize.width)
             }
 
-            previewView.applyTransform(previewView.surfaceTextureSize.width, previewView.surfaceTextureSize.height)
+            previewView.applyTransform(previewView.width, previewView.height)
             surfaceTexture.setDefaultBufferSize(chosenSize.width, chosenSize.height)
 
             viewState.capture!!.startCapture(CameraDeviceCapture.CaptureConfig(viewState.surface!!))

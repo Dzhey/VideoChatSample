@@ -16,7 +16,6 @@ class CameraDeviceCapture(context: Context, val lifecycleOwner: LifecycleOwner, 
     private val cameraManager = context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
     private var cameraDevice: CameraDevice? = null
     private var handlerThread: HandlerThread? = null
-    private var mediaRecorder: MediaRecorder? = null
     private var previewSession: CameraCaptureSession? = null
     private lateinit var config: CaptureConfig
 
@@ -96,8 +95,6 @@ class CameraDeviceCapture(context: Context, val lifecycleOwner: LifecycleOwner, 
         previewSession = null
         cameraDevice?.close()
         cameraDevice = null
-        mediaRecorder?.release()
-        mediaRecorder = null
         handlerThread?.quitSafely()
         handlerThread = null
     }
