@@ -9,6 +9,7 @@ import android.util.Size
 import android.view.Surface
 import android.view.TextureView
 import android.view.WindowManager
+import timber.log.Timber
 
 class AutoFitTextureView @JvmOverloads constructor(
     context: Context?,
@@ -18,6 +19,8 @@ class AutoFitTextureView @JvmOverloads constructor(
 
     val surfaceTextureSize: Size
         get() = Size(surfaceTextureWidth, surfaceTextureHeight)
+
+    var isAutoReleaseEnabled = true
 
     private var ratioWidth = 0
     private var ratioHeight = 0
@@ -34,7 +37,10 @@ class AutoFitTextureView @JvmOverloads constructor(
 
             override fun onSurfaceTextureUpdated(surface: SurfaceTexture?) = Unit
 
-            override fun onSurfaceTextureDestroyed(surface: SurfaceTexture?): Boolean = true
+            override fun onSurfaceTextureDestroyed(surface: SurfaceTexture?): Boolean {
+                Timber.d("surface texture destroyed")
+                return isAutoReleaseEnabled
+            }
 
             override fun onSurfaceTextureAvailable(surface: SurfaceTexture?, width: Int, height: Int) {
                 surfaceTextureWidth = width
@@ -60,7 +66,7 @@ class AutoFitTextureView @JvmOverloads constructor(
         if (ratioWidth == 0 || ratioHeight == 0) {
             setMeasuredDimension(width, height)
         } else {
-            if (width < height * ratioWidth / ratioHeight) {
+            if (width > height * ratioWidth / ratioHeight) {
                 setMeasuredDimension(width, width * ratioHeight / ratioWidth)
             } else {
                 setMeasuredDimension(height * ratioWidth / ratioHeight, height)

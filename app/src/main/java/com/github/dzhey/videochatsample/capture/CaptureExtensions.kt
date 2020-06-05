@@ -14,8 +14,15 @@ import kotlin.coroutines.suspendCoroutine
 suspend fun CameraManager.openCamera(
     cameraId: String, handler: Handler? = null
 ): CameraDevice? = suspendCancellableCoroutine {
+
+    var isResumed = false
+
     val callback = object : CameraDevice.StateCallback() {
         override fun onOpened(camera: CameraDevice) {
+            if (isResumed) {
+                return
+            }
+            isResumed = true
             it.resume(camera) {
                 Timber.d("camera opened, but open request cancelled")
                 camera.close()
@@ -23,12 +30,20 @@ suspend fun CameraManager.openCamera(
         }
 
         override fun onDisconnected(camera: CameraDevice) {
+            if (isResumed) {
+                return
+            }
+            isResumed = true
             it.resume(null) {
                 Timber.d("camera disconnected")
             }
         }
 
         override fun onError(camera: CameraDevice, error: Int) {
+            if (isResumed) {
+                return
+            }
+            isResumed = true
             val text = "camera error: $error"
             Timber.d(text)
             it.resumeWith(Result.failure(Throwable(text)))
@@ -71,6 +86,7 @@ suspend fun TextureView.requireSurfaceTexture(): SurfaceTexture = suspendCorouti
     }
 
     val initialListener = surfaceTextureListener
+    var isResumed = false
 
     surfaceTextureListener = object : TextureView.SurfaceTextureListener {
         override fun onSurfaceTextureSizeChanged(surface: SurfaceTexture?, width: Int, height: Int) {
@@ -85,7 +101,10 @@ suspend fun TextureView.requireSurfaceTexture(): SurfaceTexture = suspendCorouti
             try {
                 return initialListener?.onSurfaceTextureDestroyed(surface) ?: true
             } finally {
-                it.resumeWith(Result.failure(RuntimeException("texture destroyed")))
+                if (!isResumed) {
+                    it.resumeWith(Result.failure(RuntimeException("texture destroyed")))
+                    isResumed = true
+                }
             }
         }
 
@@ -95,7 +114,13 @@ suspend fun TextureView.requireSurfaceTexture(): SurfaceTexture = suspendCorouti
             if (surfaceTextureListener === this) {
                 surfaceTextureListener = initialListener
             }
+
+            if (isResumed) {
+                return
+            }
+
             it.resumeWith(Result.success(surface!!))
+            isResumed = true
         }
     }
 }
