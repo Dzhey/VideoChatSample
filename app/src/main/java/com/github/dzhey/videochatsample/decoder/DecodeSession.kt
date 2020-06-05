@@ -92,7 +92,7 @@ class DecodeSession constructor(
     /**
      * Restart decode session from beginning. DecodeSession status must
      * be [SessionStatus.FINISHED] or [SessionStatus.RESTARTING].
-     * Puts current status to [SessionStatus.RESTARTING] immediately. Once operation finished, status become
+     * Puts current status to [SessionStatus.RESTARTING]. Once operation finished, status become
      * either [SessionStatus.STARTED] upon successful restart or [SessionStatus.ERROR].
      * @see currentStatus
      */
@@ -114,11 +114,12 @@ class DecodeSession constructor(
 
     /**
      * Stop decode, releasing any held resources.
-     * Puts current status to [SessionStatus.STOPPING] immediately.
+     * Puts current status to [SessionStatus.STOPPING].
      * Idempotent and safe to call with any current status except [SessionStatus.RESTARTING].
      * Since method is async user must wait until status changes to [SessionStatus.STOPPED]
      * prior to any other commands.
      * Does nothing if session is already stopped.
+     * @see stopSafely
      */
     fun stop() = GlobalScope.launch(Dispatchers.Main) {
         stopImpl()
